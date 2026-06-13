@@ -6,10 +6,10 @@ interface Recipe {
   name: string;
   category: string;
   time: string;
-  portions: string;
+  portions?: string;
   ingredients: string[];
   steps: string[];
-  image: string;
+  images?: string[];
 }
 
 interface ModoCozinhaProps {

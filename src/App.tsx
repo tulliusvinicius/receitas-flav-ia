@@ -10,10 +10,10 @@ interface Recipe {
   name: string;
   category: string;
   time: string;
-  portions: string;
+  portions?: string;
   ingredients: string[];
   steps: string[];
-  image: string;
+  images?: string[];
 }
 
 export default function App() {
@@ -35,7 +35,7 @@ export default function App() {
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [stepInput, setStepInput] = useState('');
   const [steps, setSteps] = useState<string[]>([]);
-  const [imagePreview, setImagePreview] = useState<string>('');
+  const [images, setImages] = useState<string[]>([]);
 
   // Categorias estáticas do sistema
   const categoriesList = ['Bolos', 'Massas', 'Carnes', 'Saladas', 'Lanches', 'Sobremesas', 'Outros'];
@@ -45,7 +45,16 @@ export default function App() {
     const saved = localStorage.getItem('recipes');
     if (saved) {
       try {
-        setRecipes(JSON.parse(saved));
+        const parsed = JSON.parse(saved) as any[];
+        const normalized = parsed.map((r) => {
+          // compatibilidade com schema antigo que usava `image: string`
+          if (r.images && Array.isArray(r.images)) return r;
+          if (r.image && typeof r.image === 'string') {
+            return { ...r, images: [r.image] };
+          }
+          return { ...r, images: r.images ?? [] };
+        });
+        setRecipes(normalized);
       } catch (e) {
         console.error("Erro ao ler LocalStorage", e);
       }
@@ -119,14 +128,21 @@ export default function App() {
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    files.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImagePreview(reader.result as string);
+        const result = reader.result as string;
+        setImages((prev) => [...prev, result]);
       };
       reader.readAsDataURL(file);
-    }
+    });
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -141,7 +157,7 @@ export default function App() {
       portions,
       ingredients,
       steps,
-      image: imagePreview
+      images
     };
 
     const updatedRecipes = [...recipes, newRecipe];
@@ -155,7 +171,7 @@ export default function App() {
     setPortions('');
     setIngredients([]);
     setSteps([]);
-    setImagePreview('');
+    setImages([]);
 
     // Voltar para a Home pós-cadastro
     setView('home');
@@ -165,6 +181,51 @@ export default function App() {
   const handleStartCooking = (recipe: Recipe) => {
     setActiveRecipe(recipe);
     setView('cook');
+  };
+
+  // Mini carrossel usado nas listas (suporta swipe e indicadores)
+  const MiniCarousel: React.FC<{ images: string[] }> = ({ images }) => {
+    const ref = React.useRef<HTMLDivElement | null>(null);
+    const [active, setActive] = React.useState(0);
+
+    React.useEffect(() => {
+      setActive(0);
+    }, [images]);
+
+    const onScroll = () => {
+      if (!ref.current) return;
+      const children = Array.from(ref.current.children) as HTMLElement[];
+      const containerRect = ref.current.getBoundingClientRect();
+      let closest = 0;
+      let minDist = Infinity;
+      children.forEach((child, i) => {
+        const r = child.getBoundingClientRect();
+        const childCenter = r.left + r.width / 2;
+        const containerCenter = containerRect.left + containerRect.width / 2;
+        const dist = Math.abs(childCenter - containerCenter);
+        if (dist < minDist) { minDist = dist; closest = i; }
+      });
+      setActive(closest);
+    };
+
+    if (!images || images.length === 0) return null;
+
+    return (
+      <div>
+        <div ref={ref} onScroll={onScroll} className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide py-2">
+          {images.map((src, idx) => (
+            <div key={idx} className="snap-center flex-shrink-0 w-56 h-36 rounded-xl overflow-hidden border border-slate-100">
+              <img src={src} alt={`img-${idx}`} className="w-full h-full object-cover" />
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-center gap-2 mt-2">
+          {images.map((_, i) => (
+            <span key={i} className={`w-2 h-2 rounded-full ${i === active ? 'bg-orange-500' : 'bg-slate-300'}`} />
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -213,16 +274,25 @@ export default function App() {
                       onClick={() => handleStartCooking(recipe)}
                       className="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-3 shadow-sm cursor-pointer active:bg-slate-50 transition-colors"
                     >
-                      {recipe.image ? (
-                        <img src={recipe.image} alt={recipe.name} className="w-12 h-12 object-cover rounded-lg" />
-                      ) : (
-                        <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-orange-500">
-                          <BookOpen className="w-5 h-5" />
-                        </div>
-                      )}
+                          {(() => {
+                            const first = (recipe as any).images && (recipe as any).images.length > 0
+                              ? (recipe as any).images[0]
+                              : (recipe as any).image || null;
+                            return first ? (
+                              <img src={first} alt={recipe.name} className="w-12 h-12 object-cover rounded-lg" />
+                            ) : (
+                              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-orange-500">
+                                <BookOpen className="w-5 h-5" />
+                              </div>
+                            );
+                          })()}
                       <div>
                         <h4 className="font-bold text-slate-800 text-sm">{recipe.name}</h4>
                         <span className="text-xs text-slate-400 block">{recipe.category} • {recipe.time} min</span>
+                        {(() => {
+                          const imgs = (recipe as any).images ?? ((recipe as any).image ? [(recipe as any).image] : []);
+                          return imgs.length > 0 ? <MiniCarousel images={imgs} /> : null;
+                        })()}
                       </div>
                     </div>
                   ))}
@@ -295,22 +365,29 @@ export default function App() {
                   onClick={() => handleStartCooking(recipe)}
                   className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4 shadow-sm cursor-pointer active:bg-slate-50 transition-colors"
                 >
-                  {recipe.image ? (
-                    <img src={recipe.image} alt={recipe.name} className="w-16 h-16 object-cover rounded-xl border border-slate-100" />
-                  ) : (
-                    <div className="w-16 h-16 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500 shrink-0">
-                      <ChefHat className="w-6 h-6" />
-                    </div>
-                  )}
+                  {(() => {
+                    const first = (recipe as any).images && (recipe as any).images.length > 0
+                      ? (recipe as any).images[0]
+                      : (recipe as any).image || null;
+                    return first ? (
+                      <img src={first} alt={recipe.name} className="w-16 h-16 object-cover rounded-xl border border-slate-100" />
+                    ) : (
+                      <div className="w-16 h-16 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500 shrink-0">
+                        <ChefHat className="w-6 h-6" />
+                      </div>
+                    );
+                  })()}
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-slate-800 text-base truncate">{recipe.name}</h3>
-                    <div className="flex items-center gap-3 text-slate-400 text-xs mt-1">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" /> {recipe.time} min
-                      </span>
-                      {recipe.portions && (
-                        <span>• {recipe.portions} porções</span>
-                      )}
+                    <div className="text-xs text-slate-400 mt-1">
+                      <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {recipe.time} min</span>
+                        {recipe.portions && (<span>• {recipe.portions} porções</span>)}
+                      </div>
+                      {(() => {
+                        const imgs = (recipe as any).images ?? ((recipe as any).image ? [(recipe as any).image] : []);
+                        return imgs.length > 0 ? <MiniCarousel images={imgs} /> : null;
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -339,19 +416,26 @@ export default function App() {
             {/* Componente de Imagem */}
             <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
               <label className="cursor-pointer block">
-                <input type="file" accept="image/*" capture="environment" onChange={handleImageChange} className="hidden" />
-                {imagePreview ? (
+                <input type="file" multiple accept="image/*" capture="environment" onChange={handleImageChange} className="hidden" />
+                {images.length > 0 ? (
                   <div className="relative rounded-xl overflow-hidden max-h-48">
-                    <img src={imagePreview} alt="Preview" className="w-full h-44 object-cover" />
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white text-xs font-bold opacity-0 hover:opacity-100 transition-opacity">
-                      Trocar Foto
+                    <div className="flex gap-2 overflow-x-auto py-2">
+                      {images.map((src, idx) => (
+                        <div key={idx} className="relative flex-shrink-0 w-36 h-36 rounded-lg overflow-hidden border border-slate-100">
+                          <img src={src} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                          <button type="button" onClick={(ev) => { ev.stopPropagation(); handleRemoveImage(idx); }} className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 text-xs">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="absolute inset-0 bg-black/0 flex items-center justify-center text-white text-xs font-bold opacity-0 hover:opacity-100 transition-opacity">
+                      Adicionar/Alterar Fotos
                     </div>
                   </div>
                 ) : (
                   <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-slate-400 hover:text-orange-500 hover:border-orange-200 transition-colors">
                     <ChefHat className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                    <span className="text-xs font-bold block text-slate-600">Adicionar foto do prato</span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">Tire na hora ou use a galeria</span>
+                    <span className="text-xs font-bold block text-slate-600">Adicionar fotos do prato</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">Tire na hora ou use a galeria (múltiplas)</span>
                   </div>
                 )}
               </label>
