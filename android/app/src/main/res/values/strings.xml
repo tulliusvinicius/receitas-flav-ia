@@ -1,7 +1,8 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Receitas da Flav</string>
-    <string name="title_activity_main">Receitas da Flav</string>
+    <string name="app_name">Receitas da Flav.ia</string>
+    <string name="activity_name">Receitas da Flav.ia</string>
+    <string name="title_activity_main">Receitas da Flav.ia</string>
     <string name="package_name">com.tullius.receitasflav</string>
     <string name="custom_url_scheme">com.tullius.receitasflav</string>
 </resources>
