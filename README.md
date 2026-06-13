@@ -8,7 +8,7 @@ Aplicativo híbrido de receitas focado em usabilidade e praticidade na cozinha, 
 
 * **Frontend:** Vite + React / Vue / Svelte *(ajuste para o seu framework framework)*
 * **Mobile Runtime:** [Capacitor CLI](https://capacitorjs.com/)
-* **Estilização:** Tailwind CSS *(se estiver usando)*
+* **Estilização:** Tailwind CSS
 * **Esteira de CI/CD:** GitHub Actions (Compilação automatizada de APKs)
 
 ---
