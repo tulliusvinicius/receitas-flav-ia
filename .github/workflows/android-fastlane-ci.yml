@@ -1,10 +1,8 @@
-name: Android CI (Capacitor Build)
+name: Android CI (Capacitor Build & Firebase Distribution)
 
 on:
   push:
-    branches: [ main ] # Dispara o build sempre que você atualizar essas branches
-  # pull_request:
-  #   branches: [ main ]
+    branches: [ main ] # Dispara o build sempre que você atualizar a main
 
 jobs:
   build:
@@ -17,20 +15,20 @@ jobs:
     - name: Configurar Node.js
       uses: actions/setup-node@v4
       with:
-        node_modules-cache: 'npm' # Substitua por 'yarn' ou 'pnpm' se usar outro
+        node_modules-cache: 'npm'
         node-version: 22
 
     - name: Configurar Java 21
       uses: actions/setup-java@v4
       with:
-        distribution: 'temurin' # Distribuição padrão oficial estável
+        distribution: 'temurin' # Sua distribuição padrão estável
         java-version: '21'
 
     - name: Instalar Dependências do Projeto web
       run: npm install
 
     - name: Build do Frontend (Gera os arquivos web do app)
-      run: npm run build # Ajuste para o seu script de build do package.json
+      run: npm run build
 
     - name: Sincronizar código com o Capacitor
       run: npx cap sync android
@@ -49,53 +47,22 @@ jobs:
         name: app-debug
         path: android/app/build/outputs/apk/debug/app-debug.apk
 
-    name: Android CI (Capacitor Build)
-
-on:
-  push:
-    branches: [ main ] # Dispara o build sempre que você atualizar essas branches
-  # pull_request:
-  #   branches: [ main ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout do código
-      uses: actions/checkout@v4
-
-    - name: Configurar Node.js
-      uses: actions/setup-node@v4
+    # --- INÍCIO DOS PASSOS DO FIREBASE APP DISTRIBUTION ---
+    
+    - name: Configurar Ruby e Fastlane
+      uses: ruby/setup-ruby@v1
       with:
-        node_modules-cache: 'npm' # Substitua por 'yarn' ou 'pnpm' se usar outro
-        node-version: 22
+        ruby-version: '3.2'
 
-    - name: Configurar Java 21
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin' # Distribuição padrão oficial estável
-        java-version: '21'
-
-    - name: Instalar Dependências do Projeto web
-      run: npm install
-
-    - name: Build do Frontend (Gera os arquivos web do app)
-      run: npm run build # Ajuste para o seu script de build do package.json
-
-    - name: Sincronizar código com o Capacitor
-      run: npx cap sync android
-
-    - name: Mudar permissão do Gradle Wrapper (Necessário para Linux)
-      run: chmod +x android/gradlew
-
-    - name: Compilar APK via Gradle (Modo Debug)
+    - name: Instalar Plugin do Firebase para Fastlane
       run: |
-        cd android
-        ./gradlew assembleDebug
+        gem install fastlane
+        fastlane add_plugin firebase_app_distribution
 
-    - name: Salvar o APK gerado como Artefato do GitHub
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug
-        path: android/app/build/outputs/apk/debug/app-debug.apk
+    - name: Distribuir APK via Firebase App Distribution
+      env:
+        FIREBASE_CREDENTIALS: ${{ secrets.FIREBASE_APP_DISTRIBUTION_CREDENTIALS }}
+      run: |
+        echo "$FIREBASE_CREDENTIALS" > firebase-credentials.json
+        export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/firebase-credentials.json
+        bundle exec fastlane android distribute
