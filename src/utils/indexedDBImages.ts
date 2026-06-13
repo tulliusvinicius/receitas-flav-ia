@@ -22,15 +22,10 @@ export async function saveFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const blob = new Blob([reader.result as ArrayBufferLike], { type: file.type });
-      const req = store.add({ id, blob, type: file.type });
-      req.onsuccess = () => resolve(id);
-      req.onerror = () => reject(req.error);
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsArrayBuffer(file);
+    // File is already a Blob, can be stored directly
+    const req = store.add({ id, blob: file, type: file.type });
+    req.onsuccess = () => resolve(id);
+    req.onerror = () => reject(req.error);
   });
 }
 
