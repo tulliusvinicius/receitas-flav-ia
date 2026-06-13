@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, ArrowLeft, Clock, ChefHat, BookOpen } from 'lucide-react';
+// Importa o novo componente que criamos
+import ModoCozinha from './components/ModoCozinha';
 
 // Tipagem da Receita salva no LocalStorage
 interface Recipe {
@@ -14,12 +16,14 @@ interface Recipe {
 }
 
 export default function App() {
-  // Controle de Navegação Simples
-  // 'home' = Grid de categorias | 'category' = Lista de receitas da categoria | 'create' = Formulário US#001
-  const [view, setView] = useState<'home' | 'category' | 'create'>('home');
+  // 1. Atualizado: Adicionamos o estado 'cook' na navegação simples
+  const [view, setView] = useState<'home' | 'category' | 'create' | 'cook'>('home');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  
+  // 2. Novo estado: Guarda a receita que o usuário quer cozinhar
+  const [activeRecipe, setActiveRecipe] = useState<Recipe | null>(null);
 
   // Estados do Formulário (Sua US#001 preservada)
   const [recipeName, setRecipeName] = useState('');
@@ -130,6 +134,12 @@ export default function App() {
     setView('home');
   };
 
+  // Função auxiliar para abrir o Modo Cozinha a partir de qualquer listagem
+  const handleStartCooking = (recipe: Recipe) => {
+    setActiveRecipe(recipe);
+    setView('cook');
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased pb-24">
       
@@ -173,7 +183,8 @@ export default function App() {
                   {filteredSearchRecipes.map((recipe) => (
                     <div 
                       key={recipe.id}
-                      className="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-3 shadow-sm"
+                      onClick={() => handleStartCooking(recipe)}
+                      className="bg-white p-3 rounded-xl border border-slate-100 flex items-center gap-3 shadow-sm cursor-pointer active:bg-slate-50 transition-colors"
                     >
                       {recipe.image ? (
                         <img src={recipe.image} alt={recipe.name} className="w-12 h-12 object-cover rounded-lg" />
@@ -254,7 +265,8 @@ export default function App() {
               {categoryRecipes.map((recipe) => (
                 <div 
                   key={recipe.id}
-                  className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4 shadow-sm"
+                  onClick={() => handleStartCooking(recipe)}
+                  className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4 shadow-sm cursor-pointer active:bg-slate-50 transition-colors"
                 >
                   {recipe.image ? (
                     <img src={recipe.image} alt={recipe.name} className="w-16 h-16 object-cover rounded-xl border border-slate-100" />
@@ -379,8 +391,19 @@ export default function App() {
         </div>
       )}
 
-      {/* Botão Flutuante de Cadastro - FAB (Critério 4) */}
-      {view !== 'create' && (
+      {/* 4. TELA DO MODO COZINHA (Critérios 1, 2 e 4 integrados) */}
+      {view === 'cook' && activeRecipe && (
+        <ModoCozinha 
+          recipe={activeRecipe} 
+          onVoltar={() => {
+            // Se a receita veio de uma categoria, volta para a categoria. Se veio da busca da home, volta para a home.
+            setView(selectedCategory ? 'category' : 'home');
+          }} 
+        />
+      )}
+
+      {/* Botão Flutuante de Cadastro - FAB */}
+      {view !== 'create' && view !== 'cook' && (
         <button
           onClick={() => setView('create')}
           className="fixed bottom-6 right-6 p-4 bg-gradient-to-br from-orange-500 to-amber-500 text-white rounded-full shadow-lg active:scale-95 transition-transform z-30"
