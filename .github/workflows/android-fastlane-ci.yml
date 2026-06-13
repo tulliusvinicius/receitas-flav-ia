@@ -2,9 +2,9 @@ name: Android CI (Capacitor Build)
 
 on:
   push:
-    branches: [ main, master ] # Dispara o build sempre que você atualizar essas branches
-  pull_request:
-    branches: [ main, master ]
+    branches: [ main ] # Dispara o build sempre que você atualizar essas branches
+  # pull_request:
+  #   branches: [ main ]
 
 jobs:
   build:

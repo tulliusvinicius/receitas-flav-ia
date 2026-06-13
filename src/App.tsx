@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, ArrowLeft, Clock, ChefHat, BookOpen } from 'lucide-react';
 // Importa o novo componente que criamos
+import { App as CapApp } from '@capacitor/app';
 import ModoCozinha from './components/ModoCozinha';
 
 // Tipagem da Receita salva no LocalStorage
@@ -50,6 +51,32 @@ export default function App() {
       }
     }
   }, [view]);
+
+  useEffect(() => {
+    const backButtonListener = CapApp.addListener('backButton', (data) => {
+      if (view === 'cook') {
+        setView(selectedCategory ? 'category' : 'home');
+      } 
+      else if (view === 'category') {
+        setView('home');
+        setSelectedCategory('');
+      } 
+      else if (view === 'create') {
+        setView('home');
+      } 
+      else if (view === 'home') {
+        if (searchQuery.trim() !== '') {
+          setSearchQuery('');
+        } else {
+          CapApp.exitApp();
+        }
+      }
+    });
+
+    return () => {
+      backButtonListener.then(listener => listener.remove());
+    };
+  }, [view, selectedCategory, searchQuery]);
 
   // Contagem de receitas por categoria (Critério 1)
   const getRecipeCount = (catName: string) => {
