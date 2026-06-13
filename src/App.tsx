@@ -38,7 +38,7 @@ export default function App() {
   const [imagePreview, setImagePreview] = useState<string>('');
 
   // Categorias estáticas do sistema
-  const categoriesList = ['Massas', 'Sobremesas', 'Carnes', 'Saladas', 'Lanches', 'Outros'];
+  const categoriesList = ['Bolos', 'Massas', 'Carnes', 'Saladas', 'Lanches', 'Sobremesas', 'Outros'];
 
   // Carregar receitas do LocalStorage ao montar o componente
   useEffect(() => {
@@ -176,7 +176,7 @@ export default function App() {
           <div className="mb-6">
             <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2">
               <ChefHat className="text-orange-500 w-8 h-8" />
-              Receitas da Flav
+              Receitas da Flav.ia
             </h1>
             <p className="text-slate-500 text-sm mt-1">O que vamos cozinhar hoje?</p>
           </div>
