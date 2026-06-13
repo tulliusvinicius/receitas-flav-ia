@@ -217,50 +217,7 @@ export default function App() {
     setView('cook');
   };
 
-  // Mini carrossel usado nas listas (suporta swipe e indicadores)
-  const MiniCarousel: React.FC<{ images: string[] }> = ({ images }) => {
-    const ref = React.useRef<HTMLDivElement | null>(null);
-    const [active, setActive] = React.useState(0);
-
-    React.useEffect(() => {
-      setActive(0);
-    }, [images]);
-
-    const onScroll = () => {
-      if (!ref.current) return;
-      const children = Array.from(ref.current.children) as HTMLElement[];
-      const containerRect = ref.current.getBoundingClientRect();
-      let closest = 0;
-      let minDist = Infinity;
-      children.forEach((child, i) => {
-        const r = child.getBoundingClientRect();
-        const childCenter = r.left + r.width / 2;
-        const containerCenter = containerRect.left + containerRect.width / 2;
-        const dist = Math.abs(childCenter - containerCenter);
-        if (dist < minDist) { minDist = dist; closest = i; }
-      });
-      setActive(closest);
-    };
-
-    if (!images || images.length === 0) return null;
-
-    return (
-      <div>
-        <div ref={ref} onScroll={onScroll} className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide py-2">
-          {images.map((src, idx) => (
-            <div key={idx} className="snap-center flex-shrink-0 w-56 h-36 rounded-xl overflow-hidden border border-slate-100">
-              <img src={src} alt={`img-${idx}`} className="w-full h-full object-cover" />
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-center gap-2 mt-2">
-          {images.map((_, i) => (
-            <span key={i} className={`w-2 h-2 rounded-full ${i === active ? 'bg-orange-500' : 'bg-slate-300'}`} />
-          ))}
-        </div>
-      </div>
-    );
-  };
+  // (Removed MiniCarousel from home/category lists — carousel now only in ModoCozinha.)
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased pb-24">
@@ -323,10 +280,7 @@ export default function App() {
                       <div>
                         <h4 className="font-bold text-slate-800 text-sm">{recipe.name}</h4>
                         <span className="text-xs text-slate-400 block">{recipe.category} • {recipe.time} min</span>
-                        {(() => {
-                          const imgs = (recipe as any).images ?? ((recipe as any).image ? [(recipe as any).image] : []);
-                          return imgs.length > 0 ? <MiniCarousel images={imgs} /> : null;
-                        })()}
+                        {/* Carousel removed from lists — only in ModoCozinha now */}
                       </div>
                     </div>
                   ))}
@@ -418,10 +372,7 @@ export default function App() {
                         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {recipe.time} min</span>
                         {recipe.portions && (<span>• {recipe.portions} porções</span>)}
                       </div>
-                      {(() => {
-                        const imgs = (recipe as any).images ?? ((recipe as any).image ? [(recipe as any).image] : []);
-                        return imgs.length > 0 ? <MiniCarousel images={imgs} /> : null;
-                      })()}
+                      {/* Carousel removed from category list — only in ModoCozinha now */}
                     </div>
                   </div>
                 </div>
