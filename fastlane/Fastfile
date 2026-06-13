@@ -1,0 +1,17 @@
+default_platform(:android)
+
+platform :android do
+  desc "Builda o APK e envia para o Firebase App Distribution"
+  lane :distribute do
+    # Caminho padrão onde o Gradle gera o APK de release/debug no Capacitor
+    apk_path = "../android/app/build/outputs/apk/debug/app-debug.apk"
+    
+    firebase_app_distribution(
+      apk_path: apk_path,
+      # Você encontra o App ID nas configurações do seu app no painel do Firebase
+      app: "1:389816669715:android:e8be21384d60913cfcd1e6", 
+      groups: "testers", # Nome do grupo de testadores que você criou
+      release_notes: "Nova versão com correções e melhorias visuais!"
+    )
+  end
+end
