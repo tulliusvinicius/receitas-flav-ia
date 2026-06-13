@@ -47,17 +47,18 @@ jobs:
         name: app-debug
         path: android/app/build/outputs/apk/debug/app-debug.apk
 
-    # --- INÍCIO DOS PASSOS DO FIREBASE APP DISTRIBUTION ---
+# --- NOVO BLOCO DO FIREBASE APP DISTRIBUTION CORRIGIDO ---
     
-    - name: Configurar Ruby e Fastlane
+    - name: Configurar Ruby
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: '3.2'
+        bundler-cache: true # Faz o cache automático dos plugins para os próximos builds sumirem em segundos!
 
-    - name: Instalar Plugin do Firebase para Fastlane
+    - name: Instalar Dependências do Fastlane (Sem interrupções)
       run: |
-        gem install fastlane
-        fastlane add_plugin firebase_app_distribution
+        gem install bundler
+        bundle install
 
     - name: Distribuir APK via Firebase App Distribution
       env:
