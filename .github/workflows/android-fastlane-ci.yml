@@ -1,0 +1,50 @@
+name: Android CI (Capacitor Build)
+
+on:
+  push:
+    branches: [ main, master ] # Dispara o build sempre que você atualizar essas branches
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout do código
+      uses: actions/checkout@v4
+
+    - name: Configurar Node.js
+      uses: actions/setup-node@v4
+      with:
+        node_modules-cache: 'npm' # Substitua por 'yarn' ou 'pnpm' se usar outro
+        node-version: 20
+
+    - name: Configurar Java 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin' # Distribuição padrão oficial estável
+        java-version: '21'
+
+    - name: Instalar Dependências do Projeto web
+      run: npm install
+
+    - name: Build do Frontend (Gera os arquivos web do app)
+      run: npm run build # Ajuste para o seu script de build do package.json
+
+    - name: Sincronizar código com o Capacitor
+      run: npx cap sync android
+
+    - name: Mudar permissão do Gradle Wrapper (Necessário para Linux)
+      run: chmod +x android/gradlew
+
+    - name: Compilar APK via Gradle (Modo Debug)
+      run: |
+        cd android
+        ./gradlew assembleDebug
+
+    - name: Salvar o APK gerado como Artefato do GitHub
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: android/app/build/outputs/apk/debug/app-debug.apk
