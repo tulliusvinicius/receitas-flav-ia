@@ -131,7 +131,25 @@ export default function App() {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    files.forEach((file) => {
+    const MAX_IMAGES = 6;
+    const MAX_SIZE = 1.5 * 1024 * 1024; // 1.5 MB
+
+    // Filtra arquivos grandes e excesso de arquivos
+    const allowed = files.filter(f => f.size <= MAX_SIZE);
+    const remainingSlots = Math.max(0, MAX_IMAGES - images.length);
+    const toProcess = allowed.slice(0, remainingSlots);
+
+    if (toProcess.length === 0) {
+      if (images.length >= MAX_IMAGES) window.alert(`Limite de imagens atingido (${MAX_IMAGES}).`);
+      else window.alert('As imagens selecionadas são muito grandes. Tente reduzir o tamanho.');
+      return;
+    }
+
+    if (toProcess.length < files.length) {
+      window.alert('Algumas imagens foram ignoradas por excederem o tamanho máximo ou o limite de quantidade.');
+    }
+
+    toProcess.forEach((file) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
@@ -161,8 +179,24 @@ export default function App() {
     };
 
     const updatedRecipes = [...recipes, newRecipe];
-    localStorage.setItem('recipes', JSON.stringify(updatedRecipes));
-    setRecipes(updatedRecipes);
+
+    try {
+      localStorage.setItem('recipes', JSON.stringify(updatedRecipes));
+      setRecipes(updatedRecipes);
+    } catch (err: any) {
+      console.error('Erro ao salvar recipes:', err);
+      // Tenta salvar sem imagens como fallback
+      try {
+        const stripped = updatedRecipes.map((r) => ({ ...r, images: [] }));
+        localStorage.setItem('recipes', JSON.stringify(stripped));
+        setRecipes(stripped as Recipe[]);
+        window.alert('As imagens excederam o espaço disponível. A receita foi salva sem imagens.');
+      } catch (err2) {
+        console.error('Falha ao salvar sem imagens:', err2);
+        window.alert('Não foi possível salvar a receita. Tente reduzir o tamanho ou a quantidade de imagens.');
+        return;
+      }
+    }
 
     // Resetar campos
     setRecipeName('');
