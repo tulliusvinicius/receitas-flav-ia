@@ -35,30 +35,83 @@ export default function App() {
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [stepInput, setStepInput] = useState('');
   const [steps, setSteps] = useState<string[]>([]);
-  const [images, setImages] = useState<string[]>([]);
+  // image IDs stored in IndexedDB
+  const [imageIds, setImageIds] = useState<string[]>([]);
+  // preview URLs for selected files before/after save
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  // helper thumbnail component to resolve image IDs to object URLs
+  const Thumbnail: React.FC<{ src: string | null; className?: string; alt?: string }> = ({ src, className, alt }) => {
+    const [url, setUrl] = useState<string | null>(null);
+    useEffect(() => {
+      let mounted = true;
+      if (!src) { setUrl(null); return; }
+      if (src.startsWith('data:') || src.startsWith('blob:') || src.startsWith('http')) {
+        setUrl(src);
+        return;
+      }
+      (async () => {
+        try {
+          const mod = await import('./utils/indexedDBImages');
+          const u = await mod.getImageURL(src);
+          if (mounted) setUrl(u);
+        } catch (e) {
+          console.error('Thumbnail load failed', e);
+        }
+      })();
+      return () => { mounted = false; };
+    }, [src]);
+    if (!url) return (<div className={className}><BookOpen className="w-5 h-5" /></div>);
+    return <img src={url} alt={alt} className={className} />;
+  };
 
   // Categorias estáticas do sistema
   const categoriesList = ['Bolos', 'Massas', 'Carnes', 'Saladas', 'Lanches', 'Sobremesas', 'Outros'];
 
   // Carregar receitas do LocalStorage ao montar o componente
   useEffect(() => {
-    const saved = localStorage.getItem('recipes');
-    if (saved) {
+    const loadAndMigrate = async () => {
+      const saved = localStorage.getItem('recipes');
+      if (!saved) return;
       try {
         const parsed = JSON.parse(saved) as any[];
-        const normalized = parsed.map((r) => {
-          // compatibilidade com schema antigo que usava `image: string`
-          if (r.images && Array.isArray(r.images)) return r;
-          if (r.image && typeof r.image === 'string') {
-            return { ...r, images: [r.image] };
+        const normalized: any[] = [];
+        const { saveBlobDataURL } = await import('./utils/indexedDBImages');
+        for (const r of parsed) {
+          if (r.images && Array.isArray(r.images)) {
+            // migrate any data URLs into indexedDB and replace with ids
+            const newIds: string[] = [];
+            for (const img of r.images) {
+              if (typeof img === 'string' && img.startsWith('data:')) {
+                try {
+                  const id = await saveBlobDataURL(img);
+                  newIds.push(id);
+                } catch (e) {
+                  console.error('Failed migrating image to IndexedDB', e);
+                }
+              } else {
+                newIds.push(img);
+              }
+            }
+            normalized.push({ ...r, images: newIds });
+          } else if (r.image && typeof r.image === 'string') {
+            // legacy single image
+            try {
+              const id = await saveBlobDataURL(r.image);
+              normalized.push({ ...r, images: [id] });
+            } catch (e) {
+              normalized.push({ ...r, images: [] });
+            }
+          } else {
+            normalized.push({ ...r, images: r.images ?? [] });
           }
-          return { ...r, images: r.images ?? [] };
-        });
+        }
+        localStorage.setItem('recipes', JSON.stringify(normalized));
         setRecipes(normalized);
       } catch (e) {
         console.error("Erro ao ler LocalStorage", e);
       }
-    }
+    };
+    loadAndMigrate();
   }, [view]);
 
   useEffect(() => {
@@ -127,20 +180,19 @@ export default function App() {
     }
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const MAX_IMAGES = 6;
-    const MAX_SIZE = 1.5 * 1024 * 1024; // 1.5 MB
+    const MAX_IMAGES = 20; // allow more when using IndexedDB
+    const MAX_SIZE = 8 * 1024 * 1024; // 8 MB per file
 
-    // Filtra arquivos grandes e excesso de arquivos
     const allowed = files.filter(f => f.size <= MAX_SIZE);
-    const remainingSlots = Math.max(0, MAX_IMAGES - images.length);
+    const remainingSlots = Math.max(0, MAX_IMAGES - imageIds.length);
     const toProcess = allowed.slice(0, remainingSlots);
 
     if (toProcess.length === 0) {
-      if (images.length >= MAX_IMAGES) window.alert(`Limite de imagens atingido (${MAX_IMAGES}).`);
+      if (imageIds.length >= MAX_IMAGES) window.alert(`Limite de imagens atingido (${MAX_IMAGES}).`);
       else window.alert('As imagens selecionadas são muito grandes. Tente reduzir o tamanho.');
       return;
     }
@@ -149,18 +201,29 @@ export default function App() {
       window.alert('Algumas imagens foram ignoradas por excederem o tamanho máximo ou o limite de quantidade.');
     }
 
-    toProcess.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setImages((prev) => [...prev, result]);
-      };
-      reader.readAsDataURL(file);
-    });
+    const { saveFile } = await import('./utils/indexedDBImages');
+    for (const file of toProcess) {
+      // preview immediately
+      const url = URL.createObjectURL(file);
+      setImagePreviews(prev => [...prev, url]);
+      try {
+        const id = await saveFile(file);
+        setImageIds(prev => [...prev, id]);
+      } catch (err) {
+        console.error('Failed to save file to IndexedDB', err);
+        window.alert('Falha ao salvar imagem localmente');
+      }
+    }
   };
 
-  const handleRemoveImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
+  const handleRemoveImage = async (index: number) => {
+    const id = imageIds[index];
+    if (id) {
+      const { deleteImage } = await import('./utils/indexedDBImages');
+      try { await deleteImage(id); } catch (e) { console.error('delete failed', e); }
+    }
+    setImageIds((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -175,7 +238,7 @@ export default function App() {
       portions,
       ingredients,
       steps,
-      images
+      images: imageIds
     };
 
     const updatedRecipes = [...recipes, newRecipe];
@@ -205,7 +268,8 @@ export default function App() {
     setPortions('');
     setIngredients([]);
     setSteps([]);
-    setImages([]);
+    setImageIds([]);
+    setImagePreviews([]);
 
     // Voltar para a Home pós-cadastro
     setView('home');
@@ -270,7 +334,7 @@ export default function App() {
                               ? (recipe as any).images[0]
                               : (recipe as any).image || null;
                             return first ? (
-                              <img src={first} alt={recipe.name} className="w-12 h-12 object-cover rounded-lg" />
+                              <Thumbnail src={first} alt={recipe.name} className="w-12 h-12 object-cover rounded-lg" />
                             ) : (
                               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-orange-500">
                                 <BookOpen className="w-5 h-5" />
@@ -358,7 +422,7 @@ export default function App() {
                       ? (recipe as any).images[0]
                       : (recipe as any).image || null;
                     return first ? (
-                      <img src={first} alt={recipe.name} className="w-16 h-16 object-cover rounded-xl border border-slate-100" />
+                      <Thumbnail src={first} alt={recipe.name} className="w-16 h-16 object-cover rounded-xl border border-slate-100" />
                     ) : (
                       <div className="w-16 h-16 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500 shrink-0">
                         <ChefHat className="w-6 h-6" />
@@ -402,10 +466,10 @@ export default function App() {
             <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
               <label className="cursor-pointer block">
                 <input type="file" multiple accept="image/*" capture="environment" onChange={handleImageChange} className="hidden" />
-                {images.length > 0 ? (
+                {imagePreviews.length > 0 ? (
                   <div className="relative rounded-xl overflow-hidden max-h-48">
                     <div className="flex gap-2 overflow-x-auto py-2">
-                      {images.map((src, idx) => (
+                      {imagePreviews.map((src, idx) => (
                         <div key={idx} className="relative flex-shrink-0 w-36 h-36 rounded-lg overflow-hidden border border-slate-100">
                           <img src={src} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
                           <button type="button" onClick={(ev) => { ev.stopPropagation(); handleRemoveImage(idx); }} className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 text-xs">✕</button>

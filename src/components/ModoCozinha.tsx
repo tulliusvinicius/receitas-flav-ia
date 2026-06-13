@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { getImageURL } from '../utils/indexedDBImages';
 import { CheckCircle2, Clock, Utensils, ArrowLeft, ListOrdered } from 'lucide-react';
 
 interface Recipe {
@@ -85,8 +86,30 @@ export default function ModoCozinha({ recipe, onVoltar }: ModoCozinhaProps) {
         </h1>
         {/* Carousel de imagens (US#004) - entre nome e badges */}
         {(() => {
-          const imgs = (recipe as any).images ?? ((recipe as any).image ? [(recipe as any).image] : []);
-          if (!imgs || imgs.length === 0) return null;
+          const rawImgs = (recipe as any).images ?? ((recipe as any).image ? [(recipe as any).image] : []);
+          if (!rawImgs || rawImgs.length === 0) return null;
+
+          const [imageURLs, setImageURLs] = useState<string[]>([]);
+          useEffect(() => {
+            let mounted = true;
+            (async () => {
+              const urls: string[] = [];
+              for (const img of rawImgs) {
+                if (typeof img === 'string' && (img.startsWith('data:') || img.startsWith('blob:') || img.startsWith('http')) ) {
+                  urls.push(img);
+                } else if (typeof img === 'string') {
+                  try {
+                    const u = await getImageURL(img);
+                    if (u) urls.push(u);
+                  } catch (e) {
+                    console.error('Failed to load image from IDB', e);
+                  }
+                }
+              }
+              if (mounted) setImageURLs(urls);
+            })();
+            return () => { mounted = false; };
+          }, [rawImgs]);
 
           const Carousel = ({ images }: { images: string[] }) => {
             const ref = useRef<HTMLDivElement | null>(null);
@@ -128,7 +151,7 @@ export default function ModoCozinha({ recipe, onVoltar }: ModoCozinhaProps) {
             );
           };
 
-          return <Carousel images={imgs} />;
+          return <Carousel images={imageURLs} />;
         })()}
 
         <div className="flex gap-4 mt-3 text-base font-bold text-slate-500">
