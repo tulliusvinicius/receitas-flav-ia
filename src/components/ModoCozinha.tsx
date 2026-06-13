@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CheckCircle2, Clock, Utensils, ArrowLeft, ListOrdered } from 'lucide-react';
 
 interface Recipe {
@@ -83,7 +83,54 @@ export default function ModoCozinha({ recipe, onVoltar }: ModoCozinhaProps) {
         <h1 className="text-3xl font-black text-slate-900 leading-tight tracking-tight break-words">
           {recipe.name}
         </h1>
-        
+        {/* Carousel de imagens (US#004) - entre nome e badges */}
+        {(() => {
+          const imgs = (recipe as any).images ?? ((recipe as any).image ? [(recipe as any).image] : []);
+          if (!imgs || imgs.length === 0) return null;
+
+          const Carousel = ({ images }: { images: string[] }) => {
+            const ref = useRef<HTMLDivElement | null>(null);
+            const [active, setActive] = useState(0);
+
+            useEffect(() => setActive(0), [images]);
+
+            const onScroll = () => {
+              if (!ref.current) return;
+              const children = Array.from(ref.current.children) as HTMLElement[];
+              const containerRect = ref.current.getBoundingClientRect();
+              let closest = 0;
+              let minDist = Infinity;
+              children.forEach((child, i) => {
+                const r = child.getBoundingClientRect();
+                const childCenter = r.left + r.width / 2;
+                const containerCenter = containerRect.left + containerRect.width / 2;
+                const dist = Math.abs(childCenter - containerCenter);
+                if (dist < minDist) { minDist = dist; closest = i; }
+              });
+              setActive(closest);
+            };
+
+            return (
+              <div>
+                <div ref={ref} onScroll={onScroll} className="flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide py-2">
+                  {images.map((src, idx) => (
+                    <div key={idx} className="snap-center flex-shrink-0 w-full max-w-md h-[16.5rem] rounded-xl overflow-hidden border border-slate-100">
+                      <img src={src} alt={`img-${idx}`} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-center gap-2 mt-2">
+                  {images.map((_, i) => (
+                    <span key={i} className={`w-2 h-2 rounded-full ${i === active ? 'bg-orange-500' : 'bg-slate-300'}`} />
+                  ))}
+                </div>
+              </div>
+            );
+          };
+
+          return <Carousel images={imgs} />;
+        })()}
+
         <div className="flex gap-4 mt-3 text-base font-bold text-slate-500">
           <span className="flex items-center gap-1.5 bg-slate-200/60 px-3 py-1 rounded-full">
             <Clock size={18} className="text-slate-600" /> {recipe.time} min
