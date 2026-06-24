@@ -25,7 +25,7 @@ jobs:
         java-version: '21'
 
     - name: Instalar Dependências do Projeto web
-      run: npm install
+      run: npm install --legacy-peer-deps
 
     - name: Build do Frontend (Gera os arquivos web do app)
       run: npm run build
