@@ -42,6 +42,7 @@ export default function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [googleUser, setGoogleUser] = useState<any>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const GOOGLE_WEB_CLIENT_ID = '389816669715-47nhoaoetj28nmk9sb6m1t4u9dr5qsgr.apps.googleusercontent.com';
   const GOOGLE_ANDROID_CLIENT_ID = '389816669715-fcvevl65b7gp3gkngftp8apm292pbaki.apps.googleusercontent.com';
@@ -93,10 +94,12 @@ export default function App() {
         }
       } catch (refreshError) {
         console.log('GoogleAuth refresh', refreshError);
+        setAuthError(String(refreshError));
         setLoggedIn(false);
       }
     } catch (authError) {
       console.log('GoogleAuth initialize failed', authError);
+      setAuthError(String(authError));
       setLoggedIn(false);
     } finally {
       setAuthLoading(false);
@@ -115,6 +118,7 @@ export default function App() {
       }
     } catch (signInError) {
       console.error('Google sign-in failed', signInError);
+      setAuthError(String(signInError));
       window.alert('Não foi possível efetuar login com o Google. Tente novamente.');
     } finally {
       setAuthLoading(false);
@@ -388,6 +392,15 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Debug banner to help diagnose native login issues */}
+      <div className="fixed left-4 bottom-4 z-50">
+        <div className="bg-white/90 text-xs text-slate-700 px-3 py-2 rounded-xl border border-slate-200 shadow-sm">
+          <div>authLoading: <span className="font-mono">{String(authLoading)}</span></div>
+          <div>loggedIn: <span className="font-mono">{String(loggedIn)}</span></div>
+          {authError ? <div className="text-rose-600">authError: {authError}</div> : null}
+        </div>
+      </div>
 
       {view !== 'login' && view !== 'settings' && loggedIn && (
         <div className="fixed top-4 right-4 z-40">
