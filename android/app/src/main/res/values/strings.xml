@@ -5,4 +5,5 @@
     <string name="title_activity_main">Receitas da Flav.ia</string>
     <string name="package_name">com.tullius.receitasflav</string>
     <string name="custom_url_scheme">com.tullius.receitasflav</string>
+    <string name="server_client_id">389816669715-47nhoaoetj28nmk9sb6m1t4u9dr5qsgr.apps.googleusercontent.com</string>
 </resources>

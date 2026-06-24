@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, ArrowLeft, Clock, ChefHat, BookOpen } from 'lucide-react';
+import { Plus, Search, ArrowLeft, Clock, ChefHat, BookOpen, Loader2, LogOut, Settings2 } from 'lucide-react';
 // Importa o novo componente que criamos
 import { App as CapApp } from '@capacitor/app';
 import ModoCozinha from './components/ModoCozinha';
@@ -18,7 +18,7 @@ interface Recipe {
 
 export default function App() {
   // 1. Atualizado: Adicionamos o estado 'cook' na navegação simples
-  const [view, setView] = useState<'home' | 'category' | 'create' | 'cook'>('home');
+  const [view, setView] = useState<'login' | 'home' | 'category' | 'create' | 'cook' | 'settings'>('login');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -39,6 +39,14 @@ export default function App() {
   const [imageIds, setImageIds] = useState<string[]>([]);
   // preview URLs for selected files before/after save
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [googleUser, setGoogleUser] = useState<any>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const GOOGLE_WEB_CLIENT_ID = '389816669715-47nhoaoetj28nmk9sb6m1t4u9dr5qsgr.apps.googleusercontent.com';
+  const GOOGLE_ANDROID_CLIENT_ID = '389816669715-fcvevl65b7gp3gkngftp8apm292pbaki.apps.googleusercontent.com';
+
   // helper thumbnail component to resolve image IDs to object URLs
   const Thumbnail: React.FC<{ src: string | null; className?: string; alt?: string }> = ({ src, className, alt }) => {
     const [url, setUrl] = useState<string | null>(null);
@@ -62,6 +70,75 @@ export default function App() {
     }, [src]);
     if (!url) return (<div className={className}><BookOpen className="w-5 h-5" /></div>);
     return <img src={url} alt={alt} className={className} />;
+  };
+
+  const initializeGoogleAuth = async () => {
+    try {
+      const mod = await import('@codetrix-studio/capacitor-google-auth');
+      await mod.GoogleAuth.initialize({
+        clientId: GOOGLE_WEB_CLIENT_ID,
+        androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+        serverClientId: GOOGLE_WEB_CLIENT_ID,
+        scopes: ['profile', 'email'],
+        grantOfflineAccess: true,
+      });
+
+      try {
+        const session = await mod.GoogleAuth.refresh();
+        if (session?.accessToken) {
+          setLoggedIn(true);
+          setGoogleUser(session);
+          setView('home');
+        } else {
+          setLoggedIn(false);
+        }
+      } catch (refreshError) {
+        console.log('GoogleAuth refresh', refreshError);
+        setAuthError(String(refreshError));
+        setLoggedIn(false);
+      }
+    } catch (authError) {
+      console.log('GoogleAuth initialize failed', authError);
+      setAuthError(String(authError));
+      setLoggedIn(false);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleSignIn = async () => {
+    setAuthLoading(true);
+    try {
+      const mod = await import('@codetrix-studio/capacitor-google-auth');
+      const user = await mod.GoogleAuth.signIn();
+      if (user) {
+        setGoogleUser(user);
+        setLoggedIn(true);
+        setView('home');
+      }
+    } catch (signInError) {
+      console.error('Google sign-in failed', signInError);
+      setAuthError(String(signInError));
+      window.alert('Não foi possível efetuar login com o Google. Tente novamente.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setAuthLoading(true);
+    try {
+      const mod = await import('@codetrix-studio/capacitor-google-auth');
+      await mod.GoogleAuth.signOut();
+      setLoggedIn(false);
+      setGoogleUser(null);
+      setView('login');
+    } catch (logoutError) {
+      console.error('Logout failed', logoutError);
+      window.alert('Falha ao fazer logout. Tente novamente.');
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   // Categorias estáticas do sistema
@@ -113,6 +190,16 @@ export default function App() {
     };
     loadAndMigrate();
   }, [view]);
+
+  useEffect(() => {
+    initializeGoogleAuth();
+  }, []);
+
+  useEffect(() => {
+    if (!authLoading && !loggedIn) {
+      setView('login');
+    }
+  }, [authLoading, loggedIn]);
 
   useEffect(() => {
     const backButtonListener = CapApp.addListener('backButton', (data) => {
@@ -285,7 +372,74 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans antialiased pb-24">
-      
+      {view === 'login' && (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+          <div className="w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-xl border border-slate-200 text-center">
+            <div className="mb-6">
+              <ChefHat className="mx-auto w-14 h-14 text-orange-500" />
+              <h1 className="text-2xl font-black text-slate-900 mt-4">Entrar com o Google</h1>
+              <p className="text-sm text-slate-500 mt-2">Use sua conta Google para acessar suas receitas salvas.</p>
+            </div>
+            <button
+              onClick={handleSignIn}
+              disabled={authLoading}
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-3xl bg-slate-900 text-white font-semibold hover:bg-slate-800 active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+              {authLoading ? 'Carregando...' : 'Continuar com o Google'}
+            </button>
+            <p className="text-xs text-slate-400 mt-4">Ao continuar, você aceita usar sua sessão Google para salvar receitas localmente.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Debug banner to help diagnose native login issues */}
+      <div className="fixed left-4 bottom-4 z-50">
+        <div className="bg-white/90 text-xs text-slate-700 px-3 py-2 rounded-xl border border-slate-200 shadow-sm">
+          <div>authLoading: <span className="font-mono">{String(authLoading)}</span></div>
+          <div>loggedIn: <span className="font-mono">{String(loggedIn)}</span></div>
+          {authError ? <div className="text-rose-600">authError: {authError}</div> : null}
+        </div>
+      </div>
+
+      {view !== 'login' && view !== 'settings' && loggedIn && (
+        <div className="fixed top-4 right-4 z-40">
+          <button onClick={() => setView('settings')} className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 active:scale-[0.98] transition-all">
+            <Settings2 className="w-4 h-4" />
+            Configurações
+          </button>
+        </div>
+      )}
+
+      {view === 'settings' && loggedIn && (
+        <div className="max-w-md mx-auto px-4 pt-6">
+          <button 
+            onClick={() => setView('home')}
+            className="mb-4 flex items-center gap-1 text-slate-500 font-medium text-sm active:text-orange-500 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Voltar
+          </button>
+
+          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+            <h1 className="text-2xl font-black text-slate-900">Configurações</h1>
+            <p className="text-sm text-slate-500 mt-2">Gerencie sua sessão e conta Google.</p>
+            <div className="mt-6 space-y-3 text-sm text-slate-700">
+              {googleUser?.name && <p><span className="font-bold">Nome: </span>{googleUser.name}</p>}
+              {googleUser?.email && <p><span className="font-bold">Email: </span>{googleUser.email}</p>}
+              {googleUser?.idToken && <p className="text-xs text-slate-400">Sessão ativa</p>}
+            </div>
+            <button
+              onClick={handleLogout}
+              disabled={authLoading}
+              className="mt-8 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-3xl bg-orange-500 text-white font-semibold hover:bg-orange-600 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogOut className="w-4 h-4" />}
+              {authLoading ? 'Saindo...' : 'Sair'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 1. TELA INICIAL (HOME) */}
       {view === 'home' && (
         <div className="max-w-md mx-auto px-4 pt-6">

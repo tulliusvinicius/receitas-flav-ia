@@ -1,5 +1,14 @@
 {
   "appId": "com.tullius.receitasflav",
   "appName": "Receitas da Flav.ia",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "androidClientId": "389816669715-fcvevl65b7gp3gkngftp8apm292pbaki.apps.googleusercontent.com",
+      "clientId": "389816669715-47nhoaoetj28nmk9sb6m1t4u9dr5qsgr.apps.googleusercontent.com",
+      "serverClientId": "389816669715-47nhoaoetj28nmk9sb6m1t4u9dr5qsgr.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": true
+    }
+  }
 }
