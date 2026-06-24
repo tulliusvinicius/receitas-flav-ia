@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "389816669715",
+    "project_id": "receitas-da-flavia",
+    "storage_bucket": "receitas-da-flavia.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:389816669715:android:e8be21384d60913cfcd1e6",
+        "android_client_info": {
+          "package_name": "com.tullius.receitasflav"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "389816669715-fcvevl65b7gp3gkngftp8apm292pbaki.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tullius.receitasflav",
+            "certificate_hash": "7b400fb4a005db5438437838070245a6eb195614"
+          }
+        },
+        {
+          "client_id": "389816669715-47nhoaoetj28nmk9sb6m1t4u9dr5qsgr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMKz9zNpuyun_BnK9vXzYC7uobF9hfib4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "389816669715-47nhoaoetj28nmk9sb6m1t4u9dr5qsgr.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
